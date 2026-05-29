@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Avatar, Box, Button, Card, CardContent, Divider, Paper, TextField, Typography } from '@mui/material';
+import { Alert, Avatar, Box, Button, Card, CardContent, Divider, Paper, Snackbar, TextField, Typography } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { supabase } from '../services/supabase';
 import PageShell from '../components/PageShell';
 import { readStore, writeStore } from '../services/localStore';
+import { imageFileToDataUrl } from '../services/imageUpload';
 
 type ProfileForm = {
   name: string;
@@ -16,19 +18,11 @@ type ProfileForm = {
 
 const emptyProfile: ProfileForm = { name: '', phone: '', company_role: '', photo_url: '' };
 
-function fileToDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function Settings() {
   const [user, setUser] = useState({ email: '', id: '' });
   const [formData, setFormData] = useState<ProfileForm>(() => readStore('leadmap:user-profile', emptyProfile));
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
@@ -40,25 +34,31 @@ export default function Settings() {
 
   async function handlePhotoChange(file?: File) {
     if (!file) return;
-    const photoUrl = await fileToDataUrl(file);
-    setFormData((current) => ({ ...current, photo_url: photoUrl }));
+
+    try {
+      const photoUrl = await imageFileToDataUrl(file);
+      setFormData((current) => ({ ...current, photo_url: photoUrl }));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Nao foi possivel carregar a imagem.');
+    }
   }
 
   const handleSave = async () => {
     setSaving(true);
     writeStore('leadmap:user-profile', formData);
     setSaving(false);
+    setMessage('Alteracoes salvas com sucesso.');
   };
 
   return (
     <PageShell
-      title="Minhas configurações"
-      subtitle="Dados do usuário, foto de perfil, contato e preferências básicas de acesso."
+      title="Minhas configuracoes"
+      subtitle="Dados do usuario, foto de perfil, contato e preferencias basicas de acesso."
       icon={<AccountCircleIcon />}
     >
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 340px' }, gap: 2.5 }}>
         <Paper elevation={0} sx={{ p: 3, borderRadius: '8px', border: '1px solid rgba(24, 33, 47, 0.08)' }}>
-          <Typography variant="h6">Perfil do usuário</Typography>
+          <Typography variant="h6">Perfil do usuario</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mt: 2 }}>
             <TextField
               label="Nome completo"
@@ -67,7 +67,7 @@ export default function Settings() {
               fullWidth
             />
             <TextField
-              label="Cargo/Função"
+              label="Cargo/Funcao"
               value={formData.company_role}
               onChange={(e) => setFormData({ ...formData, company_role: e.target.value })}
               fullWidth
@@ -76,17 +76,22 @@ export default function Settings() {
             <TextField label="E-mail" type="email" value={user.email} fullWidth disabled />
           </Box>
 
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2 }}>
             <Button variant="outlined" component="label" startIcon={<PhotoCameraIcon />}>
-              Adicionar foto do usuário
+              Adicionar foto do usuario
               <input hidden accept="image/*" type="file" onChange={(e) => handlePhotoChange(e.target.files?.[0])} />
             </Button>
+            {formData.photo_url && (
+              <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => setFormData({ ...formData, photo_url: '' })}>
+                Remover foto
+              </Button>
+            )}
           </Box>
 
           <Divider sx={{ my: 3 }} />
-          <Typography variant="h6">Segurança</Typography>
+          <Typography variant="h6">Seguranca</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75, mb: 2 }}>
-            A proteção real das mensagens deve ser feita com RLS no Supabase. A interface administrativa usa código de acesso.
+            A protecao real das mensagens deve ser feita com RLS no Supabase. A interface administrativa usa codigo de acesso.
           </Typography>
           <Button variant="outlined" color="warning">
             Alterar senha
@@ -94,7 +99,7 @@ export default function Settings() {
 
           <Box sx={{ mt: 3 }}>
             <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar alterações'}
+              {saving ? 'Salvando...' : 'Salvar alteracoes'}
             </Button>
           </Box>
         </Paper>
@@ -109,7 +114,7 @@ export default function Settings() {
                 {(formData.name || user.email || 'U').charAt(0).toUpperCase()}
               </Avatar>
               <Box sx={{ textAlign: 'center' }}>
-                <Typography sx={{ fontWeight: 900 }}>{formData.name || 'Usuário'}</Typography>
+                <Typography sx={{ fontWeight: 900 }}>{formData.name || 'Usuario'}</Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary', wordBreak: 'break-word' }}>
                   {user.email}
                 </Typography>
@@ -118,6 +123,10 @@ export default function Settings() {
           </CardContent>
         </Card>
       </Box>
+
+      <Snackbar open={!!message} autoHideDuration={4000} onClose={() => setMessage('')}>
+        <Alert severity={message.startsWith('Nao') ? 'warning' : 'success'}>{message}</Alert>
+      </Snackbar>
     </PageShell>
   );
 }

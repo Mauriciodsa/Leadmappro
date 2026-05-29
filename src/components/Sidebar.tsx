@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { Box, Button, Divider, Drawer, List, ListItemButton, ListItemIcon, Toolbar, Typography } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import GroupIcon from '@mui/icons-material/Group';
@@ -14,7 +14,9 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import SettingsIcon from '@mui/icons-material/Settings';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import LogoutIcon from '@mui/icons-material/Logout';
+import LaunchIcon from '@mui/icons-material/Launch';
 import Logo from './Logo';
+import { readCompanyProfile } from '../services/localStore';
 
 export const drawerWidth = 264;
 
@@ -44,6 +46,18 @@ type SidebarProps = {
 };
 
 export default function Sidebar({ currentPath, onNavigate, onLogout }: SidebarProps) {
+  const [salesUrl, setSalesUrl] = useState(() => readCompanyProfile().sales_url || import.meta.env.VITE_SALES_URL || '');
+
+  useEffect(() => {
+    const updateSalesUrl = () => setSalesUrl(readCompanyProfile().sales_url || import.meta.env.VITE_SALES_URL || '');
+    window.addEventListener('storage', updateSalesUrl);
+    window.addEventListener('focus', updateSalesUrl);
+    return () => {
+      window.removeEventListener('storage', updateSalesUrl);
+      window.removeEventListener('focus', updateSalesUrl);
+    };
+  }, []);
+
   const renderItem = (item: { text: string; icon: ReactElement; path: string }) => {
     const active = currentPath === item.path;
 
@@ -99,6 +113,20 @@ export default function Sidebar({ currentPath, onNavigate, onLogout }: SidebarPr
           PRINCIPAL
         </Typography>
         <List sx={{ p: 0 }}>{mainMenu.map(renderItem)}</List>
+
+        <Button
+          fullWidth
+          variant="contained"
+          color="secondary"
+          startIcon={<LaunchIcon />}
+          href={salesUrl || undefined}
+          target="_blank"
+          rel="noreferrer"
+          disabled={!salesUrl}
+          sx={{ mt: 1.5 }}
+        >
+          Pagina de vendas
+        </Button>
 
         <Divider sx={{ my: 2 }} />
 

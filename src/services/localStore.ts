@@ -86,6 +86,26 @@ export type AiChatMessage = {
   createdAt: string;
 };
 
+export type CompanyProfile = {
+  nome: string;
+  email: string;
+  telefone: string;
+  endereco: string;
+  cnpj: string;
+  logo_url: string;
+  sales_url: string;
+};
+
+export const emptyCompanyProfile: CompanyProfile = {
+  nome: '',
+  email: '',
+  telefone: '',
+  endereco: '',
+  cnpj: '',
+  logo_url: '',
+  sales_url: '',
+};
+
 export const emptyCliente: ClienteLocal = {
   id: '',
   nome: '',
@@ -259,6 +279,14 @@ export function readAiMessages() {
 
 export function writeAiMessages(messages: AiChatMessage[]) {
   writeStore('leadmap:ai-messages', messages);
+}
+
+export function readCompanyProfile() {
+  return readStore<CompanyProfile>('leadmap:company', emptyCompanyProfile);
+}
+
+export function writeCompanyProfile(company: CompanyProfile) {
+  writeStore('leadmap:company', company);
 }
 
 export function newId(prefix: string) {

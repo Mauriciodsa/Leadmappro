@@ -4,42 +4,24 @@ import SaveIcon from '@mui/icons-material/Save';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import BusinessIcon from '@mui/icons-material/Business';
 import KeyIcon from '@mui/icons-material/Key';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { supabase } from '../services/supabase';
 import PageShell from '../components/PageShell';
 import Logo from '../components/Logo';
-import { readStore, writeStore } from '../services/localStore';
+import { emptyCompanyProfile, readCompanyProfile, writeCompanyProfile, type CompanyProfile } from '../services/localStore';
 import { saveAdminCode } from '../services/security';
+import { imageFileToDataUrl } from '../services/imageUpload';
 
-interface CompanySettingsData {
+interface CompanySettingsData extends CompanyProfile {
   id?: string;
-  nome: string;
-  email: string;
-  telefone: string;
-  endereco: string;
-  cnpj: string;
-  logo_url: string;
 }
 
 const emptyCompany: CompanySettingsData = {
-  nome: '',
-  email: '',
-  telefone: '',
-  endereco: '',
-  cnpj: '',
-  logo_url: '',
+  ...emptyCompanyProfile,
 };
 
-function fileToDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function CompanySettings() {
-  const [company, setCompany] = useState<CompanySettingsData>(() => readStore('leadmap:company', emptyCompany));
+  const [company, setCompany] = useState<CompanySettingsData>(() => ({ ...emptyCompany, ...readCompanyProfile() }));
   const [adminCode, setAdminCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -51,7 +33,7 @@ export default function CompanySettings() {
     async function loadCompanySettings() {
       const { data } = await supabase.from('empresa').select('*').limit(1).single();
       if (!active) return;
-      if (data) setCompany({ ...emptyCompany, ...readStore('leadmap:company', emptyCompany), ...data });
+      if (data) setCompany({ ...emptyCompany, ...readCompanyProfile(), ...data });
       setLoading(false);
     }
 
@@ -63,13 +45,18 @@ export default function CompanySettings() {
 
   async function handleLogoChange(file?: File) {
     if (!file) return;
-    const logoUrl = await fileToDataUrl(file);
-    setCompany((current) => ({ ...current, logo_url: logoUrl }));
+
+    try {
+      const logoUrl = await imageFileToDataUrl(file);
+      setCompany((current) => ({ ...current, logo_url: logoUrl }));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Nao foi possivel carregar a imagem.');
+    }
   }
 
   async function handleSave() {
     setSaving(true);
-    writeStore('leadmap:company', company);
+    writeCompanyProfile(company);
     if (adminCode.trim()) {
       await saveAdminCode(adminCode);
     }
@@ -80,7 +67,7 @@ export default function CompanySettings() {
       : await supabase.from('empresa').insert([payload]);
 
     setSaving(false);
-    setMessage(error ? 'Salvo localmente. Verifique colunas/permissões no Supabase para salvar no banco.' : 'Configurações salvas com sucesso.');
+    setMessage(error ? 'Salvo localmente. Verifique colunas/permissoes no Supabase para salvar no banco.' : 'Configuracoes salvas com sucesso.');
     setTimeout(() => setMessage(''), 4000);
   }
 
@@ -95,7 +82,7 @@ export default function CompanySettings() {
   return (
     <PageShell
       title="Empresa"
-      subtitle="Ajuste identidade, dados comerciais, logo e código administrativo de segurança."
+      subtitle="Ajuste identidade, dados comerciais, logo, pagina de vendas e codigo administrativo de seguranca."
       icon={<BusinessIcon />}
     >
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 360px' }, gap: 2.5 }}>
@@ -118,12 +105,20 @@ export default function CompanySettings() {
             />
             <TextField label="Telefone" value={company.telefone} onChange={(e) => setCompany({ ...company, telefone: e.target.value })} fullWidth />
             <TextField
-              label="Endereço"
+              label="Endereco"
               value={company.endereco}
               onChange={(e) => setCompany({ ...company, endereco: e.target.value })}
               fullWidth
               multiline
               rows={3}
+              sx={{ gridColumn: { xs: 'auto', sm: '1 / -1' } }}
+            />
+            <TextField
+              label="Link da pagina de vendas"
+              value={company.sales_url}
+              onChange={(e) => setCompany({ ...company, sales_url: e.target.value })}
+              fullWidth
+              placeholder="https://sua-pagina-de-vendas.com"
               sx={{ gridColumn: { xs: 'auto', sm: '1 / -1' } }}
             />
           </Box>
@@ -133,27 +128,32 @@ export default function CompanySettings() {
               Adicionar logo/foto
               <input hidden accept="image/*" type="file" onChange={(e) => handleLogoChange(e.target.files?.[0])} />
             </Button>
+            {company.logo_url && (
+              <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => setCompany({ ...company, logo_url: '' })}>
+                Remover imagem
+              </Button>
+            )}
           </Box>
 
           <Box sx={{ mt: 3, p: 2, borderRadius: '8px', background: '#f8fafc', border: '1px solid rgba(24, 33, 47, 0.08)' }}>
             <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <KeyIcon color="primary" /> Código do administrador
+              <KeyIcon color="primary" /> Codigo do administrador
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75, mb: 2 }}>
-              Este código libera a visualização administrativa do chat na interface. Para segurança real, aplique as políticas RLS do arquivo SQL.
+              Este codigo libera a visualizacao administrativa do chat na interface. Para seguranca real, aplique as politicas RLS do arquivo SQL.
             </Typography>
             <TextField
-              label="Novo código de acesso"
+              label="Novo codigo de acesso"
               type="password"
               value={adminCode}
               onChange={(e) => setAdminCode(e.target.value)}
               fullWidth
-              placeholder="Defina um código forte"
+              placeholder="Defina um codigo forte"
             />
           </Box>
 
           <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave} disabled={saving} sx={{ mt: 3 }}>
-            {saving ? 'Salvando...' : 'Salvar configurações'}
+            {saving ? 'Salvando...' : 'Salvar configuracoes'}
           </Button>
         </Paper>
 
@@ -165,7 +165,7 @@ export default function CompanySettings() {
               </Avatar>
               <Logo />
             </Box>
-            <Typography variant="h6">Prévia comercial</Typography>
+            <Typography variant="h6">Previa comercial</Typography>
             <Box sx={{ display: 'grid', gap: 1.5, mt: 2 }}>
               <Box>
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 800 }}>
@@ -185,13 +185,19 @@ export default function CompanySettings() {
                 </Typography>
                 <Typography sx={{ wordBreak: 'break-word' }}>{company.email || '-'}</Typography>
               </Box>
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 800 }}>
+                  Pagina de vendas
+                </Typography>
+                <Typography sx={{ wordBreak: 'break-word' }}>{company.sales_url || '-'}</Typography>
+              </Box>
             </Box>
           </CardContent>
         </Card>
       </Box>
 
       <Snackbar open={!!message} autoHideDuration={4000} onClose={() => setMessage('')}>
-        <Alert severity={message.startsWith('Salvo localmente') ? 'warning' : 'success'}>{message}</Alert>
+        <Alert severity={message.startsWith('Salvo localmente') || message.startsWith('Nao') ? 'warning' : 'success'}>{message}</Alert>
       </Snackbar>
     </PageShell>
   );

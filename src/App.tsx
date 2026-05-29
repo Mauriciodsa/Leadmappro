@@ -10,7 +10,9 @@ import CalculateIcon from '@mui/icons-material/Calculate';
 import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import LaunchIcon from '@mui/icons-material/Launch';
 import { isSupabaseConfigured, missingSupabaseEnv, supabase } from './services/supabase';
+import { readCompanyProfile } from './services/localStore';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Clientes from './pages/Clientes';
@@ -40,13 +42,23 @@ const mobileMenu = [
 ];
 
 function MainApp() {
-  const [logged, setLogged] = useState<boolean | null>(null);
+  const [logged, setLogged] = useState<boolean | null>(() => (isSupabaseConfigured ? null : false));
+  const [salesUrl, setSalesUrl] = useState(() => readCompanyProfile().sales_url || import.meta.env.VITE_SALES_URL || '');
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
+    const updateSalesUrl = () => setSalesUrl(readCompanyProfile().sales_url || import.meta.env.VITE_SALES_URL || '');
+    window.addEventListener('storage', updateSalesUrl);
+    window.addEventListener('focus', updateSalesUrl);
+    return () => {
+      window.removeEventListener('storage', updateSalesUrl);
+      window.removeEventListener('focus', updateSalesUrl);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isSupabaseConfigured) {
-      setLogged(false);
       return;
     }
 
@@ -172,6 +184,25 @@ function MainApp() {
             </Tooltip>
           );
         })}
+        {salesUrl && (
+          <Tooltip title="Pagina de vendas" key="sales-link">
+            <IconButton
+              color="secondary"
+              component="a"
+              href={salesUrl}
+              target="_blank"
+              rel="noreferrer"
+              sx={{
+                width: 46,
+                minWidth: 46,
+                height: 46,
+                borderRadius: '8px',
+              }}
+            >
+              <LaunchIcon />
+            </IconButton>
+          </Tooltip>
+        )}
       </Paper>
     </Box>
   );
