@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { Box, CircularProgress, IconButton, Paper, Tooltip } from '@mui/material';
+import { Box, Button, CircularProgress, IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import GroupIcon from '@mui/icons-material/Group';
 import MapIcon from '@mui/icons-material/Map';
@@ -10,7 +10,7 @@ import CalculateIcon from '@mui/icons-material/Calculate';
 import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
-import { supabase } from './services/supabase';
+import { isSupabaseConfigured, missingSupabaseEnv, supabase } from './services/supabase';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Clientes from './pages/Clientes';
@@ -45,6 +45,11 @@ function MainApp() {
   const location = useLocation();
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLogged(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setLogged(!!session);
     });
@@ -58,6 +63,37 @@ function MainApp() {
     return (
       <Box sx={{ minHeight: '100svh', display: 'grid', placeItems: 'center' }}>
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!isSupabaseConfigured) {
+    return (
+      <Box sx={{ minHeight: '100svh', display: 'grid', placeItems: 'center', px: 2 }}>
+        <Stack
+          spacing={2}
+          sx={{
+            width: '100%',
+            maxWidth: 520,
+            p: 3,
+            border: '1px solid rgba(24, 33, 47, 0.12)',
+            borderRadius: '8px',
+            background: '#ffffff',
+          }}
+        >
+          <Typography variant="h5" component="h1">
+            Configuracao do Supabase pendente
+          </Typography>
+          <Typography color="text.secondary">
+            Adicione estas variaveis de ambiente na Vercel e publique novamente:
+          </Typography>
+          <Box component="pre" sx={{ m: 0, p: 2, borderRadius: '8px', background: '#f4f7f6', overflowX: 'auto' }}>
+            {missingSupabaseEnv.join('\n')}
+          </Box>
+          <Button variant="contained" href="https://vercel.com/dashboard" target="_blank" rel="noreferrer">
+            Abrir Vercel
+          </Button>
+        </Stack>
       </Box>
     );
   }
