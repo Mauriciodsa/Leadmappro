@@ -28,6 +28,15 @@ function latToTileY(lat: number, zoom: number) {
   return ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * 2 ** zoom;
 }
 
+function tileXToLng(tileX: number, zoom: number) {
+  return (tileX / 2 ** zoom) * 360 - 180;
+}
+
+function tileYToLat(tileY: number, zoom: number) {
+  const radians = Math.atan(Math.sinh(Math.PI * (1 - (2 * tileY) / 2 ** zoom)));
+  return (radians * 180) / Math.PI;
+}
+
 function clampLat(lat: number) {
   return Math.max(-85, Math.min(85, lat));
 }
@@ -53,7 +62,7 @@ export default function Mapa() {
     })
     .filter(isMappedCliente);
 
-  const center = mappedClientes.length
+  const baseCenter = mappedClientes.length
     ? {
         lat: mappedClientes.reduce((sum, cliente) => sum + cliente.lat, 0) / mappedClientes.length,
         lng: mappedClientes.reduce((sum, cliente) => sum + cliente.lng, 0) / mappedClientes.length,
@@ -62,8 +71,16 @@ export default function Mapa() {
 
   const initialZoom = mappedClientes.length > 1 ? 11 : 13;
   const [zoom, setZoom] = useState(initialZoom);
-  const centerTileX = lngToTileX(center.lng, zoom);
-  const centerTileY = latToTileY(center.lat, zoom);
+  const [mapCenter, setMapCenter] = useState(baseCenter);
+  const [dragState, setDragState] = useState<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startTileX: number;
+    startTileY: number;
+  } | null>(null);
+  const centerTileX = lngToTileX(mapCenter.lng, zoom);
+  const centerTileY = latToTileY(mapCenter.lat, zoom);
   const tileStartX = Math.floor(centerTileX) - 2;
   const tileStartY = Math.floor(centerTileY) - 2;
   const offsetX = (centerTileX - Math.floor(centerTileX)) * tileSize;
@@ -77,11 +94,41 @@ export default function Mapa() {
 
   function resetZoom() {
     setZoom(initialZoom);
+    setMapCenter(baseCenter);
   }
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
     event.preventDefault();
     changeZoom(event.deltaY < 0 ? 1 : -1);
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragState({
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startTileX: centerTileX,
+      startTileY: centerTileY,
+    });
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - dragState.startX;
+    const deltaY = event.clientY - dragState.startY;
+    const nextTileX = dragState.startTileX - deltaX / tileSize;
+    const nextTileY = dragState.startTileY - deltaY / tileSize;
+    setMapCenter({
+      lat: clampLat(tileYToLat(nextTileY, zoom)),
+      lng: tileXToLng(nextTileX, zoom),
+    });
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragState?.pointerId === event.pointerId) {
+      setDragState(null);
+    }
   }
 
   return (
@@ -106,9 +153,22 @@ export default function Mapa() {
             background: '#dbe7ee',
             position: 'relative',
           }}
-          onWheel={handleWheel}
         >
-          <Box sx={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              overflow: 'hidden',
+              cursor: dragState ? 'grabbing' : 'grab',
+              touchAction: 'none',
+              userSelect: 'none',
+            }}
+            onWheel={handleWheel}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={() => setDragState(null)}
+          >
             {Array.from({ length: 5 }).map((_row, rowIndex) =>
               Array.from({ length: 5 }).map((_col, colIndex) => {
                 const x = tileStartX + colIndex;
@@ -130,9 +190,8 @@ export default function Mapa() {
                 );
               }),
             )}
-          </Box>
 
-          {mappedClientes.map((cliente) => {
+            {mappedClientes.map((cliente) => {
             const pointX = (lngToTileX(cliente.lng, zoom) - centerTileX) * tileSize;
             const pointY = (latToTileY(cliente.lat, zoom) - centerTileY) * tileSize;
             return (
@@ -159,6 +218,7 @@ export default function Mapa() {
               </Box>
             );
           })}
+          </Box>
 
           <Box
             sx={{

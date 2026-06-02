@@ -41,6 +41,9 @@ create table if not exists public.clientes (
   documento text default '',
   empresa text default '',
   endereco text default '',
+  numero text default '',
+  complemento text default '',
+  bairro text default '',
   cidade text default '',
   estado text default '',
   cep text default '',
@@ -57,6 +60,10 @@ create table if not exists public.clientes (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.clientes add column if not exists numero text default '';
+alter table public.clientes add column if not exists complemento text default '';
+alter table public.clientes add column if not exists bairro text default '';
 
 create table if not exists public.produtos (
   id text primary key,

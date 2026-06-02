@@ -155,21 +155,27 @@ export default function EmpresaIA() {
             <TextField
               label="Créditos mensais"
               type="number"
-              value={config.monthlyCredits}
+              value={config.monthlyCredits || ''}
+              placeholder="0"
+              onFocus={(e) => e.target.select()}
               onChange={(e) => setConfig({ ...config, monthlyCredits: Number(e.target.value) })}
               fullWidth
             />
             <TextField
               label="Créditos usados"
               type="number"
-              value={config.usedCredits}
+              value={config.usedCredits || ''}
+              placeholder="0"
+              onFocus={(e) => e.target.select()}
               onChange={(e) => setConfig({ ...config, usedCredits: Number(e.target.value) })}
               fullWidth
             />
             <TextField
               label="R$ por crédito extra"
               type="number"
-              value={config.extraCreditPrice}
+              value={config.extraCreditPrice || ''}
+              placeholder="0,00"
+              onFocus={(e) => e.target.select()}
               onChange={(e) => setConfig({ ...config, extraCreditPrice: Number(e.target.value) })}
               fullWidth
             />

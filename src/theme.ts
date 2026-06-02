@@ -57,6 +57,11 @@ export const theme = createTheme({
         root: {
           borderRadius: 8,
           boxShadow: 'none',
+          transition: 'transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease',
+          '&:hover': {
+            transform: 'translateY(-1px)',
+            boxShadow: '0 10px 22px rgba(24, 33, 47, 0.12)',
+          },
         },
       },
     },

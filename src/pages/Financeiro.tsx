@@ -4,7 +4,7 @@ import CalculateIcon from '@mui/icons-material/Calculate';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PageShell from '../components/PageShell';
-import { type BankRate, newId, readRates, writeRates } from '../services/localStore';
+import { type BankRate, type FinanceCalculation, newId, readFinanceHistory, readRates, writeFinanceHistory, writeRates } from '../services/localStore';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -23,13 +23,14 @@ function clampPercent(value: number) {
 
 export default function Financeiro() {
   const [rates, setRates] = useState<BankRate[]>(() => readRates());
-  const [selectedRateId, setSelectedRateId] = useState(rates[0]?.id || '');
-  const [netValue, setNetValue] = useState(1000);
+  const [selectedRateId, setSelectedRateId] = useState('');
+  const [netValue, setNetValue] = useState<number | ''>('');
+  const [history, setHistory] = useState<FinanceCalculation[]>(() => readFinanceHistory());
 
-  const selectedRate = rates.find((rate) => rate.id === selectedRateId) || rates[0];
+  const selectedRate = rates.find((rate) => rate.id === selectedRateId);
 
   const result = useMemo(() => {
-    if (!selectedRate) return { gross: 0, percentFee: 0, fixedFee: 0, totalFee: 0, installment: 0, checkedNet: 0 };
+    if (!selectedRate || netValue === '') return null;
 
     const desiredNetCents = toCents(Math.max(netValue, 0));
     const fixedFeeCents = toCents(Math.max(selectedRate.fixedFee, 0));
@@ -78,6 +79,30 @@ export default function Financeiro() {
     persistRates(rates.filter((rate) => rate.id !== id));
   }
 
+  function saveCalculation() {
+    if (!selectedRate || !result || netValue === '') return;
+    const nextHistory = [
+      {
+        id: newId('finance-history'),
+        netValue,
+        gross: result.gross,
+        totalFee: result.totalFee,
+        installment: result.installment,
+        rateLabel: `${selectedRate.label} - ${selectedRate.percent}% ${selectedRate.installments}x`,
+        createdAt: new Date().toISOString(),
+      },
+      ...history,
+    ].slice(0, 20);
+    setHistory(nextHistory);
+    writeFinanceHistory(nextHistory);
+  }
+
+  function removeHistory(id: string) {
+    const nextHistory = history.filter((item) => item.id !== id);
+    setHistory(nextHistory);
+    writeFinanceHistory(nextHistory);
+  }
+
   return (
     <PageShell
       title="Calculadora financeira"
@@ -96,10 +121,10 @@ export default function Financeiro() {
             <TextField
               label="Valor liquido desejado"
               type="number"
-              value={netValue || ''}
+              value={netValue}
               placeholder="0,00"
               onFocus={(e) => e.target.select()}
-              onChange={(e) => setNetValue(Math.max(Number(e.target.value), 0))}
+              onChange={(e) => setNetValue(e.target.value === '' ? '' : Math.max(Number(e.target.value), 0))}
               fullWidth
             />
             <TextField
@@ -124,7 +149,7 @@ export default function Financeiro() {
                   Cobrar do cliente
                 </Typography>
                 <Typography variant="h4" sx={{ mt: 1, color: 'primary.main' }}>
-                  {money.format(result.gross)}
+                  {money.format(result?.gross || 0)}
                 </Typography>
               </CardContent>
             </Card>
@@ -134,7 +159,7 @@ export default function Financeiro() {
                   Taxa total
                 </Typography>
                 <Typography variant="h4" sx={{ mt: 1 }}>
-                  {money.format(result.totalFee)}
+                  {money.format(result?.totalFee || 0)}
                 </Typography>
               </CardContent>
             </Card>
@@ -144,16 +169,31 @@ export default function Financeiro() {
                   Parcela estimada
                 </Typography>
                 <Typography variant="h4" sx={{ mt: 1 }}>
-                  {money.format(result.installment)}
+                  {money.format(result?.installment || 0)}
                 </Typography>
               </CardContent>
             </Card>
           </Box>
 
           <Alert severity="info" sx={{ mt: 2 }}>
-            Conferencia: liquido calculado {money.format(result.checkedNet)}. Taxa percentual {money.format(result.percentFee)} + taxa fixa{' '}
-            {money.format(result.fixedFee)}.
+            {result
+              ? `Conferencia: liquido calculado ${money.format(result.checkedNet)}. Taxa percentual ${money.format(result.percentFee)} + taxa fixa ${money.format(result.fixedFee)}.`
+              : 'Preencha o valor liquido e selecione uma taxa para calcular.'}
           </Alert>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
+            <Button variant="contained" onClick={saveCalculation} disabled={!result}>
+              Salvar no historico
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setNetValue('');
+                setSelectedRateId('');
+              }}
+            >
+              Limpar calculo
+            </Button>
+          </Box>
         </Paper>
 
         <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: '8px', border: '1px solid rgba(24, 33, 47, 0.08)' }}>
@@ -198,6 +238,40 @@ export default function Financeiro() {
           </Box>
         </Paper>
       </Box>
+      <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: '8px', border: '1px solid rgba(24, 33, 47, 0.08)', mt: 2.5 }}>
+        <Typography variant="h6">Historico de calculos</Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, mt: 2 }}>
+          {history.length === 0 ? (
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Nenhum calculo salvo ainda.
+            </Typography>
+          ) : (
+            history.map((item) => (
+              <Card key={item.id} sx={{ borderRadius: '8px' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+                    <Box>
+                      <Typography sx={{ fontWeight: 900 }}>{money.format(item.gross)}</Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        Liquido {money.format(item.netValue)} - taxa {money.format(item.totalFee)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {item.rateLabel}
+                      </Typography>
+                    </Box>
+                    <IconButton color="error" onClick={() => removeHistory(item.id)} aria-label="Excluir historico">
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
+                    {new Date(item.createdAt).toLocaleString('pt-BR')}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </Box>
+      </Paper>
     </PageShell>
   );
 }

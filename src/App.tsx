@@ -66,12 +66,14 @@ function MainApp() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setLogged(!!session);
+      if (session) navigate('/');
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setLogged(!!session);
+      if (session) navigate('/');
     });
     return () => listener.subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   if (logged === null) {
     return (
@@ -112,7 +114,16 @@ function MainApp() {
     );
   }
 
-  if (!logged) return <Login onLogin={() => setLogged(true)} />;
+  if (!logged) {
+    return (
+      <Login
+        onLogin={() => {
+          setLogged(true);
+          navigate('/');
+        }}
+      />
+    );
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut();

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -36,6 +37,8 @@ export default function Clientes() {
   const [openForm, setOpenForm] = useState(false);
   const [editCliente, setEditCliente] = useState<ClienteLocal | undefined>(undefined);
   const [formData, setFormData] = useState<ClienteLocal>({ ...emptyCliente });
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepMessage, setCepMessage] = useState('');
   const sectors = readSectors();
 
   useEffect(() => {
@@ -96,6 +99,50 @@ export default function Clientes() {
     if (!id) return;
     persistClientes(clientes.filter((cliente) => cliente.id !== id));
     await supabase.from('clientes').delete().eq('id', id);
+  }
+
+  async function fetchAddressByCep(cepValue = formData.cep) {
+    const cleanCep = cepValue.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    setCepLoading(true);
+    setCepMessage('');
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const address = await response.json();
+      if (address.erro) {
+        setCepMessage('CEP nao encontrado.');
+        return;
+      }
+
+      const nextData = {
+        ...formData,
+        cep: cleanCep,
+        endereco: address.logradouro || formData.endereco,
+        bairro: address.bairro || formData.bairro,
+        cidade: address.localidade || formData.cidade,
+        estado: address.uf || formData.estado,
+      };
+
+      try {
+        const query = [address.logradouro, address.bairro, address.localidade, address.uf, cleanCep, 'Brasil'].filter(Boolean).join(', ');
+        const geoResponse = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
+        const geoData = await geoResponse.json();
+        if (Array.isArray(geoData) && geoData[0]) {
+          nextData.latitude = geoData[0].lat || nextData.latitude;
+          nextData.longitude = geoData[0].lon || nextData.longitude;
+        }
+      } catch {
+        // O endereco continua preenchido mesmo se o servico de coordenadas falhar.
+      }
+
+      setFormData(nextData);
+      setCepMessage('Endereco preenchido pelo CEP.');
+    } catch {
+      setCepMessage('Nao foi possivel consultar o CEP agora.');
+    } finally {
+      setCepLoading(false);
+    }
   }
 
   return (
@@ -209,12 +256,29 @@ export default function Clientes() {
               label="Ja e nosso cliente"
               sx={{ alignSelf: 'center' }}
             />
-            <TextField label="CEP" value={formData.cep} onChange={(e) => setFormData({ ...formData, cep: e.target.value })} fullWidth />
+            <TextField
+              label="CEP"
+              value={formData.cep}
+              onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+              onBlur={() => fetchAddressByCep()}
+              fullWidth
+              placeholder="00000000"
+              helperText="Ao sair do campo, o endereco sera buscado automaticamente."
+            />
+            <Button variant="outlined" onClick={() => fetchAddressByCep()} disabled={cepLoading || formData.cep.replace(/\D/g, '').length !== 8}>
+              {cepLoading ? 'Buscando...' : 'Buscar CEP'}
+            </Button>
             <TextField label="Endereco" value={formData.endereco} onChange={(e) => setFormData({ ...formData, endereco: e.target.value })} fullWidth />
+            <TextField label="Numero" value={formData.numero} onChange={(e) => setFormData({ ...formData, numero: e.target.value })} fullWidth />
+            <TextField label="Complemento" value={formData.complemento} onChange={(e) => setFormData({ ...formData, complemento: e.target.value })} fullWidth />
+            <TextField label="Bairro" value={formData.bairro} onChange={(e) => setFormData({ ...formData, bairro: e.target.value })} fullWidth />
             <TextField label="Cidade" value={formData.cidade} onChange={(e) => setFormData({ ...formData, cidade: e.target.value })} fullWidth />
             <TextField label="Estado" value={formData.estado} onChange={(e) => setFormData({ ...formData, estado: e.target.value })} fullWidth />
-            <TextField label="Latitude" value={formData.latitude} onChange={(e) => setFormData({ ...formData, latitude: e.target.value })} fullWidth />
-            <TextField label="Longitude" value={formData.longitude} onChange={(e) => setFormData({ ...formData, longitude: e.target.value })} fullWidth />
+            {cepMessage && (
+              <Alert severity={cepMessage.includes('preenchido') ? 'success' : 'warning'} sx={{ gridColumn: { sm: '1 / -1' } }}>
+                {cepMessage}
+              </Alert>
+            )}
             <TextField
               label="Equipamentos que possui"
               value={formData.equipamentos}

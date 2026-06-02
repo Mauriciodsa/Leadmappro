@@ -83,7 +83,9 @@ export default function Orcamentos() {
             <TextField
               label="Valor total"
               type="number"
-              value={formData.total}
+              value={formData.total || ''}
+              placeholder="0,00"
+              onFocus={(e) => e.target.select()}
               onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })}
               fullWidth
             />

@@ -6,6 +6,9 @@ export type ClienteLocal = {
   documento: string;
   empresa: string;
   endereco: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
   cidade: string;
   estado: string;
   cep: string;
@@ -35,6 +38,16 @@ export type BankRate = {
   installments: number;
   percent: number;
   fixedFee: number;
+};
+
+export type FinanceCalculation = {
+  id: string;
+  netValue: number;
+  gross: number;
+  totalFee: number;
+  installment: number;
+  rateLabel: string;
+  createdAt: string;
 };
 
 export type Product = {
@@ -121,6 +134,9 @@ export const emptyCliente: ClienteLocal = {
   documento: '',
   empresa: '',
   endereco: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
   cidade: '',
   estado: '',
   cep: '',
@@ -255,6 +271,14 @@ export function readRates() {
 
 export function writeRates(rates: BankRate[]) {
   writeStore('leadmap:bank-rates', rates);
+}
+
+export function readFinanceHistory() {
+  return readStore<FinanceCalculation[]>('leadmap:finance-history', []);
+}
+
+export function writeFinanceHistory(history: FinanceCalculation[]) {
+  writeStore('leadmap:finance-history', history.slice(0, 20));
 }
 
 export function readProducts() {
