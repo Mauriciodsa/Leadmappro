@@ -66,7 +66,6 @@ function MainApp() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setLogged(!!session);
-      if (session) navigate('/');
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setLogged(!!session);
