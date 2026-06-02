@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Box, Button, CircularProgress, CssBaseline, IconButton, Paper, Stack, ThemeProvider, Tooltip, Typography } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -28,7 +28,7 @@ import Orcamentos from './pages/Orcamentos';
 import Backup from './pages/Backup';
 import EmpresaIA from './pages/EmpresaIA';
 import Sidebar, { drawerWidth } from './components/Sidebar';
-import { buildTheme, readThemeMode, type LeadMapThemeMode } from './theme';
+import { theme } from './theme';
 
 const mobileMenu = [
   { label: 'Dashboard', icon: <DashboardIcon />, path: '/' },
@@ -210,21 +210,8 @@ function MainApp() {
 }
 
 function App() {
-  const [themeMode, setThemeMode] = useState<LeadMapThemeMode>(() => readThemeMode());
-  const activeTheme = useMemo(() => buildTheme(themeMode), [themeMode]);
-
-  useEffect(() => {
-    const updateTheme = () => setThemeMode(readThemeMode());
-    window.addEventListener('leadmap-theme-change', updateTheme);
-    window.addEventListener('storage', updateTheme);
-    return () => {
-      window.removeEventListener('leadmap-theme-change', updateTheme);
-      window.removeEventListener('storage', updateTheme);
-    };
-  }, []);
-
   return (
-    <ThemeProvider theme={activeTheme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
         <MainApp />
