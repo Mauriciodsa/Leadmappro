@@ -1,17 +1,13 @@
 import { createTheme } from '@mui/material/styles';
 
-export type LeadMapThemeMode = 'claro' | 'escuro' | 'interativo' | 'ia' | 'moderno' | 'futurista';
+export type LeadMapThemeMode = 'claro' | 'escuro';
 
 export const themeLabels: Record<LeadMapThemeMode, string> = {
   claro: 'Tema claro',
-  escuro: 'Tema escuro',
-  interativo: 'Tema interativo',
-  ia: 'Tema estilo IA',
-  moderno: 'Tema moderno',
-  futurista: 'Tema futurista',
+  escuro: 'Tema escuro estilo VS Code',
 };
 
-export const themeModes = Object.keys(themeLabels) as LeadMapThemeMode[];
+export const themeModes: LeadMapThemeMode[] = ['claro', 'escuro'];
 
 const paletteByMode = {
   claro: {
@@ -24,67 +20,27 @@ const paletteByMode = {
     paper: '#ffffff',
     text: '#18212f',
     muted: '#667085',
+    border: 'rgba(24, 33, 47, 0.08)',
+    cardShadow: '0 12px 32px rgba(24, 33, 47, 0.08)',
   },
   escuro: {
     mode: 'dark' as const,
-    primary: '#2dd4bf',
-    primaryDark: '#0f766e',
-    primaryLight: '#7dd3fc',
-    secondary: '#facc15',
-    background: '#101828',
-    paper: '#182230',
-    text: '#f8fafc',
-    muted: '#cbd5e1',
-  },
-  interativo: {
-    mode: 'light' as const,
-    primary: '#0ea5e9',
-    primaryDark: '#0369a1',
-    primaryLight: '#38bdf8',
-    secondary: '#16a34a',
-    background: '#f2f8fb',
-    paper: '#ffffff',
-    text: '#102033',
-    muted: '#5b6878',
-  },
-  ia: {
-    mode: 'dark' as const,
-    primary: '#22d3ee',
-    primaryDark: '#0891b2',
-    primaryLight: '#a5f3fc',
-    secondary: '#a78bfa',
-    background: '#09111f',
-    paper: '#111827',
-    text: '#f8fbff',
-    muted: '#b7c4d7',
-  },
-  moderno: {
-    mode: 'light' as const,
-    primary: '#111827',
-    primaryDark: '#030712',
-    primaryLight: '#4b5563',
-    secondary: '#0f766e',
-    background: '#f5f7fa',
-    paper: '#ffffff',
-    text: '#111827',
-    muted: '#667085',
-  },
-  futurista: {
-    mode: 'dark' as const,
-    primary: '#00e5ff',
-    primaryDark: '#00a6c7',
-    primaryLight: '#67e8f9',
-    secondary: '#ffb703',
-    background: '#081018',
-    paper: '#111b25',
-    text: '#eefcff',
-    muted: '#a8bdca',
+    primary: '#007acc',
+    primaryDark: '#005a9e',
+    primaryLight: '#4fc1ff',
+    secondary: '#569cd6',
+    background: '#1e1e1e',
+    paper: '#252526',
+    text: '#d4d4d4',
+    muted: '#9cdcfe',
+    border: '#3c3c3c',
+    cardShadow: '0 14px 34px rgba(0, 0, 0, 0.36)',
   },
 };
 
 export function readThemeMode(): LeadMapThemeMode {
-  const stored = localStorage.getItem('leadmap:theme-mode') as LeadMapThemeMode | null;
-  return stored && themeModes.includes(stored) ? stored : 'claro';
+  const stored = localStorage.getItem('leadmap:theme-mode');
+  return stored === 'escuro' ? 'escuro' : 'claro';
 }
 
 export function writeThemeMode(mode: LeadMapThemeMode) {
@@ -158,8 +114,8 @@ export function buildTheme(mode: LeadMapThemeMode) {
       MuiCard: {
         styleOverrides: {
           root: {
-            border: selected.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(24, 33, 47, 0.08)',
-            boxShadow: selected.mode === 'dark' ? '0 12px 32px rgba(0, 0, 0, 0.26)' : '0 12px 32px rgba(24, 33, 47, 0.08)',
+            border: `1px solid ${selected.border}`,
+            boxShadow: selected.cardShadow,
           },
         },
       },
@@ -167,6 +123,7 @@ export function buildTheme(mode: LeadMapThemeMode) {
         styleOverrides: {
           root: {
             backgroundImage: 'none',
+            borderColor: selected.border,
           },
         },
       },
