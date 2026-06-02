@@ -1,15 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  IconButton,
-  MenuItem,
-  Paper,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, IconButton, MenuItem, Paper, TextField, Typography } from '@mui/material';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -17,6 +7,19 @@ import PageShell from '../components/PageShell';
 import { type BankRate, newId, readRates, writeRates } from '../services/localStore';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+function toCents(value: number) {
+  return Math.round((Number.isFinite(value) ? value : 0) * 100);
+}
+
+function fromCents(value: number) {
+  return value / 100;
+}
+
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(value, 99.99));
+}
 
 export default function Financeiro() {
   const [rates, setRates] = useState<BankRate[]>(() => readRates());
@@ -26,13 +29,24 @@ export default function Financeiro() {
   const selectedRate = rates.find((rate) => rate.id === selectedRateId) || rates[0];
 
   const result = useMemo(() => {
-    if (!selectedRate) return { gross: 0, fee: 0, installment: 0 };
-    const percent = Math.min(selectedRate.percent, 99.9) / 100;
-    const gross = (netValue + selectedRate.fixedFee) / (1 - percent);
+    if (!selectedRate) return { gross: 0, percentFee: 0, fixedFee: 0, totalFee: 0, installment: 0, checkedNet: 0 };
+
+    const desiredNetCents = toCents(Math.max(netValue, 0));
+    const fixedFeeCents = toCents(Math.max(selectedRate.fixedFee, 0));
+    const percent = clampPercent(selectedRate.percent) / 100;
+    const grossCents = Math.ceil((desiredNetCents + fixedFeeCents) / (1 - percent));
+    const percentFeeCents = Math.round(grossCents * percent);
+    const totalFeeCents = percentFeeCents + fixedFeeCents;
+    const checkedNetCents = grossCents - totalFeeCents;
+    const installments = Math.max(Math.round(selectedRate.installments || 1), 1);
+
     return {
-      gross,
-      fee: gross - netValue,
-      installment: gross / Math.max(selectedRate.installments, 1),
+      gross: fromCents(grossCents),
+      percentFee: fromCents(percentFeeCents),
+      fixedFee: fromCents(fixedFeeCents),
+      totalFee: fromCents(totalFeeCents),
+      installment: fromCents(Math.ceil(grossCents / installments)),
+      checkedNet: fromCents(checkedNetCents),
     };
   }, [netValue, selectedRate]);
 
@@ -67,7 +81,7 @@ export default function Financeiro() {
   return (
     <PageShell
       title="Calculadora financeira"
-      subtitle="Cadastre taxas do banco/maquininha e calcule quanto cobrar para receber o valor líquido completo."
+      subtitle="Cadastre taxas reais da maquininha/banco e calcule o valor bruto necessario para receber o liquido desejado."
       icon={<CalculateIcon />}
       action={
         <Button variant="contained" startIcon={<AddIcon />} onClick={addRate}>
@@ -75,15 +89,15 @@ export default function Financeiro() {
         </Button>
       }
     >
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' }, gap: 2.5 }}>
-        <Paper elevation={0} sx={{ p: 3, borderRadius: '8px', border: '1px solid rgba(24, 33, 47, 0.08)' }}>
-          <Typography variant="h6">Simulação de repasse</Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 400px' }, gap: 2.5 }}>
+        <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: '8px', border: '1px solid rgba(24, 33, 47, 0.08)' }}>
+          <Typography variant="h6">Simulacao de repasse preciso</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mt: 2 }}>
             <TextField
-              label="Valor líquido desejado"
+              label="Valor liquido desejado"
               type="number"
               value={netValue}
-              onChange={(e) => setNetValue(Number(e.target.value))}
+              onChange={(e) => setNetValue(Math.max(Number(e.target.value), 0))}
               fullWidth
             />
             <TextField
@@ -115,10 +129,10 @@ export default function Financeiro() {
             <Card sx={{ borderRadius: '8px' }}>
               <CardContent>
                 <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 800 }}>
-                  Taxa repassada
+                  Taxa total
                 </Typography>
                 <Typography variant="h4" sx={{ mt: 1 }}>
-                  {money.format(result.fee)}
+                  {money.format(result.totalFee)}
                 </Typography>
               </CardContent>
             </Card>
@@ -133,9 +147,14 @@ export default function Financeiro() {
               </CardContent>
             </Card>
           </Box>
+
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Conferencia: liquido calculado {money.format(result.checkedNet)}. Taxa percentual {money.format(result.percentFee)} + taxa fixa{' '}
+            {money.format(result.fixedFee)}.
+          </Alert>
         </Paper>
 
-        <Paper elevation={0} sx={{ p: 3, borderRadius: '8px', border: '1px solid rgba(24, 33, 47, 0.08)' }}>
+        <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: '8px', border: '1px solid rgba(24, 33, 47, 0.08)' }}>
           <Typography variant="h6">Taxas cadastradas</Typography>
           <Box sx={{ display: 'grid', gap: 2, mt: 2 }}>
             {rates.map((rate) => (
@@ -146,24 +165,24 @@ export default function Financeiro() {
                     <DeleteIcon />
                   </IconButton>
                 </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, mt: 1.5 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 1, mt: 1.5 }}>
                   <TextField
                     label="Parcelas"
                     type="number"
                     value={rate.installments}
-                    onChange={(e) => updateRate(rate.id, { installments: Math.max(Number(e.target.value), 1) })}
+                    onChange={(e) => updateRate(rate.id, { installments: Math.max(Math.round(Number(e.target.value)), 1) })}
                   />
                   <TextField
-                    label="%"
+                    label="Percentual"
                     type="number"
                     value={rate.percent}
-                    onChange={(e) => updateRate(rate.id, { percent: Number(e.target.value) })}
+                    onChange={(e) => updateRate(rate.id, { percent: clampPercent(Number(e.target.value)) })}
                   />
                   <TextField
-                    label="Fixo"
+                    label="Taxa fixa"
                     type="number"
                     value={rate.fixedFee}
-                    onChange={(e) => updateRate(rate.id, { fixedFee: Number(e.target.value) })}
+                    onChange={(e) => updateRate(rate.id, { fixedFee: Math.max(Number(e.target.value), 0) })}
                   />
                 </Box>
               </Box>

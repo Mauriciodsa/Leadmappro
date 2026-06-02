@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Paper,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -25,7 +28,7 @@ import AddIcon from '@mui/icons-material/Add';
 import PeopleIcon from '@mui/icons-material/People';
 import { supabase } from '../services/supabase';
 import PageShell from '../components/PageShell';
-import { type ClienteLocal, emptyCliente, newId, readClientes, writeClientes } from '../services/localStore';
+import { type ClienteLocal, emptyCliente, newId, normalizeCliente, readClientes, readSectors, writeClientes } from '../services/localStore';
 
 export default function Clientes() {
   const [clientes, setClientes] = useState<ClienteLocal[]>(() => readClientes());
@@ -33,6 +36,7 @@ export default function Clientes() {
   const [openForm, setOpenForm] = useState(false);
   const [editCliente, setEditCliente] = useState<ClienteLocal | undefined>(undefined);
   const [formData, setFormData] = useState<ClienteLocal>({ ...emptyCliente });
+  const sectors = readSectors();
 
   useEffect(() => {
     let active = true;
@@ -41,7 +45,7 @@ export default function Clientes() {
       const { data, error } = await supabase.from('clientes').select('*').order('nome');
       if (!active) return;
       if (!error && data?.length) {
-        const normalized = data.map((cliente) => ({ ...emptyCliente, ...cliente, id: cliente.id || newId('cliente') }));
+        const normalized = data.map((cliente) => normalizeCliente(cliente));
         setClientes(normalized);
         writeClientes(normalized);
       }
@@ -61,7 +65,7 @@ export default function Clientes() {
 
   function handleOpenForm(cliente?: ClienteLocal) {
     if (cliente) {
-      setFormData(cliente);
+      setFormData(normalizeCliente(cliente));
       setEditCliente(cliente);
     } else {
       setFormData({ ...emptyCliente, id: newId('cliente') });
@@ -73,7 +77,7 @@ export default function Clientes() {
   async function handleSave() {
     if (!formData.nome || !formData.telefone) return;
 
-    const payload = { ...formData, id: formData.id || newId('cliente') };
+    const payload = normalizeCliente({ ...formData, id: formData.id || newId('cliente') });
     const nextClientes = editCliente
       ? clientes.map((cliente) => (cliente.id === editCliente.id ? payload : cliente))
       : [...clientes, payload];
@@ -97,7 +101,7 @@ export default function Clientes() {
   return (
     <PageShell
       title="Clientes"
-      subtitle="Cadastro completo para CRM, mapa, origem do lead e observações comerciais."
+      subtitle="Cadastro completo para CRM, mapa, equipamentos, lembretes por setor e observacoes comerciais."
       icon={<PeopleIcon />}
       action={
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenForm()}>
@@ -119,18 +123,19 @@ export default function Clientes() {
                   <TableCell sx={{ fontWeight: 800 }}>Telefone</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Cidade/UF</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Lembrete</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 800 }}>
-                    Ações
+                    Acoes
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {clientes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                       <Typography sx={{ fontWeight: 800 }}>Nenhum cliente cadastrado</Typography>
                       <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                        Use o botão “Novo cliente” para iniciar sua base.
+                        Use o botao "Novo cliente" para iniciar sua base.
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -145,7 +150,26 @@ export default function Clientes() {
                       </TableCell>
                       <TableCell>{cliente.telefone}</TableCell>
                       <TableCell>{[cliente.cidade, cliente.estado].filter(Boolean).join('/') || '-'}</TableCell>
-                      <TableCell>{cliente.status}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                          <Chip size="small" label={cliente.status} />
+                          {cliente.nossoCliente && <Chip size="small" color="success" label="Nosso cliente" />}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        {cliente.lembreteTexto ? (
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                              {cliente.lembreteSetor || 'Geral'}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {[cliente.lembreteData, cliente.lembreteTexto].filter(Boolean).join(' - ')}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
                       <TableCell align="right">
                         <IconButton size="small" onClick={() => handleOpenForm(cliente)} aria-label="Editar cliente">
                           <EditIcon fontSize="small" />
@@ -174,20 +198,66 @@ export default function Clientes() {
             <TextField label="Empresa" value={formData.empresa} onChange={(e) => setFormData({ ...formData, empresa: e.target.value })} fullWidth />
             <TextField label="Origem do lead" value={formData.origem} onChange={(e) => setFormData({ ...formData, origem: e.target.value })} fullWidth />
             <TextField select label="Status" value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} fullWidth>
-              {['Lead', 'Em negociação', 'Cliente', 'Pós-venda', 'Inativo'].map((status) => (
+              {['Lead', 'Em negociacao', 'Cliente', 'Pos-venda', 'Inativo'].map((status) => (
                 <MenuItem key={status} value={status}>
                   {status}
                 </MenuItem>
               ))}
             </TextField>
+            <FormControlLabel
+              control={<Switch checked={formData.nossoCliente} onChange={(e) => setFormData({ ...formData, nossoCliente: e.target.checked })} />}
+              label="Ja e nosso cliente"
+              sx={{ alignSelf: 'center' }}
+            />
             <TextField label="CEP" value={formData.cep} onChange={(e) => setFormData({ ...formData, cep: e.target.value })} fullWidth />
-            <TextField label="Endereço" value={formData.endereco} onChange={(e) => setFormData({ ...formData, endereco: e.target.value })} fullWidth sx={{ gridColumn: { sm: '1 / -1' } }} />
+            <TextField label="Endereco" value={formData.endereco} onChange={(e) => setFormData({ ...formData, endereco: e.target.value })} fullWidth />
             <TextField label="Cidade" value={formData.cidade} onChange={(e) => setFormData({ ...formData, cidade: e.target.value })} fullWidth />
             <TextField label="Estado" value={formData.estado} onChange={(e) => setFormData({ ...formData, estado: e.target.value })} fullWidth />
             <TextField label="Latitude" value={formData.latitude} onChange={(e) => setFormData({ ...formData, latitude: e.target.value })} fullWidth />
             <TextField label="Longitude" value={formData.longitude} onChange={(e) => setFormData({ ...formData, longitude: e.target.value })} fullWidth />
             <TextField
-              label="Observações"
+              label="Equipamentos que possui"
+              value={formData.equipamentos}
+              onChange={(e) => setFormData({ ...formData, equipamentos: e.target.value })}
+              fullWidth
+              multiline
+              rows={2}
+              sx={{ gridColumn: { sm: '1 / -1' } }}
+              placeholder="Ex.: roteador, cameras, rastreador, sistema atual, maquinas..."
+            />
+            <TextField
+              select
+              label="Setor do lembrete"
+              value={formData.lembreteSetor}
+              onChange={(e) => setFormData({ ...formData, lembreteSetor: e.target.value })}
+              fullWidth
+            >
+              <MenuItem value="">Geral</MenuItem>
+              {sectors.map((sector) => (
+                <MenuItem key={sector.id} value={sector.name}>
+                  {sector.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Data do lembrete"
+              type="date"
+              value={formData.lembreteData}
+              onChange={(e) => setFormData({ ...formData, lembreteData: e.target.value })}
+              fullWidth
+            />
+            <TextField
+              label="Lembrete"
+              value={formData.lembreteTexto}
+              onChange={(e) => setFormData({ ...formData, lembreteTexto: e.target.value })}
+              fullWidth
+              multiline
+              rows={2}
+              sx={{ gridColumn: { sm: '1 / -1' } }}
+              placeholder="Ex.: Cobrar cliente com boleto atrasado."
+            />
+            <TextField
+              label="Observacoes"
               value={formData.observacoes}
               onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
               fullWidth

@@ -11,7 +11,7 @@ type PageShellProps = {
 
 export default function PageShell({ title, subtitle, icon, action, children }: PageShellProps) {
   return (
-    <Box className="page-enter" sx={{ minHeight: '100%', p: { xs: 2, md: 4 } }}>
+    <Box className="page-enter" sx={{ minHeight: '100%', width: '100%', p: { xs: 1.5, sm: 2.5, md: 3 }, overflowX: 'hidden' }}>
       <Box
         sx={{
           display: 'flex',

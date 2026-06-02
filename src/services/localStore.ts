@@ -13,6 +13,11 @@ export type ClienteLocal = {
   longitude: string;
   origem: string;
   status: string;
+  equipamentos: string;
+  nossoCliente: boolean;
+  lembreteSetor: string;
+  lembreteTexto: string;
+  lembreteData: string;
   observacoes: string;
 };
 
@@ -40,6 +45,8 @@ export type Product = {
   price: number;
   description: string;
   imageUrl: string;
+  siteUrl: string;
+  imageUrls: string[];
 };
 
 export type Quote = {
@@ -121,6 +128,11 @@ export const emptyCliente: ClienteLocal = {
   longitude: '',
   origem: '',
   status: 'Lead',
+  equipamentos: '',
+  nossoCliente: false,
+  lembreteSetor: '',
+  lembreteTexto: '',
+  lembreteData: '',
   observacoes: '',
 };
 
@@ -164,6 +176,8 @@ const defaultProducts: Product[] = [
     price: 1500,
     description: 'Configuração inicial, cadastro de setores e treinamento básico.',
     imageUrl: '',
+    siteUrl: '',
+    imageUrls: [],
   },
   {
     id: 'support-plan',
@@ -173,6 +187,8 @@ const defaultProducts: Product[] = [
     price: 299,
     description: 'Acompanhamento mensal e ajustes operacionais.',
     imageUrl: '',
+    siteUrl: '',
+    imageUrls: [],
   },
 ];
 
@@ -218,11 +234,11 @@ export function writeStore<T>(key: string, value: T) {
 }
 
 export function readClientes() {
-  return readStore<ClienteLocal[]>('leadmap:clientes', []);
+  return readStore<ClienteLocal[]>('leadmap:clientes', []).map(normalizeCliente);
 }
 
 export function writeClientes(clientes: ClienteLocal[]) {
-  writeStore('leadmap:clientes', clientes);
+  writeStore('leadmap:clientes', clientes.map(normalizeCliente));
 }
 
 export function readSectors() {
@@ -242,11 +258,11 @@ export function writeRates(rates: BankRate[]) {
 }
 
 export function readProducts() {
-  return readStore<Product[]>('leadmap:products', defaultProducts);
+  return readStore<Product[]>('leadmap:products', defaultProducts).map(normalizeProduct);
 }
 
 export function writeProducts(products: Product[]) {
-  writeStore('leadmap:products', products);
+  writeStore('leadmap:products', products.map(normalizeProduct));
 }
 
 export function readQuotes() {
@@ -291,4 +307,24 @@ export function writeCompanyProfile(company: CompanyProfile) {
 
 export function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+export function normalizeCliente(cliente: Partial<ClienteLocal>): ClienteLocal {
+  return { ...emptyCliente, ...cliente, id: cliente.id || newId('cliente') };
+}
+
+export function normalizeProduct(product: Partial<Product>): Product {
+  const imageUrls = Array.isArray(product.imageUrls) ? product.imageUrls.filter(Boolean).slice(0, 10) : [];
+  const legacyImage = product.imageUrl && !imageUrls.includes(product.imageUrl) ? [product.imageUrl] : [];
+  return {
+    id: product.id || newId('product'),
+    name: product.name || '',
+    code: product.code || '',
+    category: product.category || '',
+    price: Number(product.price || 0),
+    description: product.description || '',
+    imageUrl: product.imageUrl || imageUrls[0] || '',
+    siteUrl: product.siteUrl || '',
+    imageUrls: [...legacyImage, ...imageUrls].slice(0, 10),
+  };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Avatar, Box, Button, Card, CardContent, Divider, Paper, Snackbar, TextField, Typography } from '@mui/material';
+import { Alert, Avatar, Box, Button, Card, CardContent, Divider, MenuItem, Paper, Snackbar, TextField, Typography } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -8,6 +8,7 @@ import { supabase } from '../services/supabase';
 import PageShell from '../components/PageShell';
 import { readStore, writeStore } from '../services/localStore';
 import { imageFileToDataUrl } from '../services/imageUpload';
+import { readThemeMode, themeLabels, themeModes, writeThemeMode, type LeadMapThemeMode } from '../theme';
 
 type ProfileForm = {
   name: string;
@@ -21,6 +22,7 @@ const emptyProfile: ProfileForm = { name: '', phone: '', company_role: '', photo
 export default function Settings() {
   const [user, setUser] = useState({ email: '', id: '' });
   const [formData, setFormData] = useState<ProfileForm>(() => readStore('leadmap:user-profile', emptyProfile));
+  const [themeMode, setThemeMode] = useState<LeadMapThemeMode>(() => readThemeMode());
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -46,6 +48,7 @@ export default function Settings() {
   const handleSave = async () => {
     setSaving(true);
     writeStore('leadmap:user-profile', formData);
+    writeThemeMode(themeMode);
     setSaving(false);
     setMessage('Alteracoes salvas com sucesso.');
   };
@@ -87,6 +90,27 @@ export default function Settings() {
               </Button>
             )}
           </Box>
+
+          <Divider sx={{ my: 3 }} />
+          <Typography variant="h6">Aparencia</Typography>
+          <TextField
+            select
+            label="Tema do sistema"
+            value={themeMode}
+            onChange={(e) => {
+              const nextTheme = e.target.value as LeadMapThemeMode;
+              setThemeMode(nextTheme);
+              writeThemeMode(nextTheme);
+            }}
+            fullWidth
+            sx={{ mt: 2 }}
+          >
+            {themeModes.map((mode) => (
+              <MenuItem key={mode} value={mode}>
+                {themeLabels[mode]}
+              </MenuItem>
+            ))}
+          </TextField>
 
           <Divider sx={{ my: 3 }} />
           <Typography variant="h6">Seguranca</Typography>

@@ -1,12 +1,12 @@
 function buildInstructions(config, businessContext) {
   return [
-    `Você é ${config.assistantName || 'a IA da empresa'} dentro do CRM LeadMap Pro.`,
+    `Voce e ${config.assistantName || 'a IA da empresa'} dentro do CRM LeadMap Pro.`,
     `Tom de voz: ${config.tone || 'profissional e cordial'}.`,
-    `Contexto da empresa: ${config.companyContext || 'não informado'}.`,
-    `Regras: ${config.rules || 'responda com clareza e peça informações quando necessário'}.`,
-    `Se não souber responder, use esta postura: ${config.fallbackMessage || 'peça para falar com um atendente'}.`,
-    'Use apenas os dados de contexto fornecidos abaixo como apoio operacional. Não exponha dados sensíveis sem necessidade.',
-    `Contexto do CRM em JSON: ${JSON.stringify(businessContext || {})}`,
+    `Contexto da empresa: ${config.companyContext || 'nao informado'}.`,
+    `Regras: ${config.rules || 'responda com clareza e peca informacoes quando necessario'}.`,
+    `Se nao souber responder, use esta postura: ${config.fallbackMessage || 'peca para falar com um atendente'}.`,
+    'Use apenas os dados de contexto fornecidos abaixo como apoio operacional. Nao exponha dados sensiveis sem necessidade.',
+    `Contexto do CRM em JSON: ${JSON.stringify(businessContext || {}).slice(0, 12000)}`,
   ].join('\n\n');
 }
 
@@ -25,35 +25,43 @@ function extractOutputText(data) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Método não permitido.' });
+    return res.status(405).json({ error: 'Metodo nao permitido.' });
   }
 
   const openAiApiKey = process.env.OPENAI_API_KEY;
   const aiModuleEnabled = process.env.AI_MODULE_ENABLED !== 'false';
 
   if (!openAiApiKey) {
-    return res.status(500).json({ error: 'OPENAI_API_KEY não configurada.' });
+    return res.status(500).json({ error: 'OPENAI_API_KEY nao configurada.' });
   }
   if (!aiModuleEnabled) {
-    return res.status(402).json({ error: 'Módulo de IA desativado para este ambiente.' });
+    return res.status(402).json({ error: 'Modulo de IA desativado para este ambiente.' });
   }
 
-  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
+  let body = {};
+  try {
+    body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
+  } catch {
+    return res.status(400).json({ error: 'JSON invalido.' });
+  }
+
   const { config = {}, message = '', history = [], businessContext = {} } = body;
+  const safeMessage = String(message || '').slice(0, 4000);
+  const safeHistory = Array.isArray(history) ? history.slice(-8) : [];
 
-  if (!config.enabled) return res.status(400).json({ error: 'A IA está desativada na configuração.' });
-  if (!config.addonActive) return res.status(402).json({ error: 'Módulo de IA não contratado para esta empresa.' });
+  if (!config.enabled) return res.status(400).json({ error: 'A IA esta desativada na configuracao.' });
+  if (!config.addonActive) return res.status(402).json({ error: 'Modulo de IA nao contratado para esta empresa.' });
   if (Number(config.monthlyCredits || 0) - Number(config.usedCredits || 0) <= 0) {
-    return res.status(402).json({ error: 'Créditos da IA esgotados. Adicione créditos extras para continuar.' });
+    return res.status(402).json({ error: 'Creditos da IA esgotados. Adicione creditos extras para continuar.' });
   }
-  if (!message.trim()) return res.status(400).json({ error: 'Mensagem vazia.' });
+  if (!safeMessage.trim()) return res.status(400).json({ error: 'Mensagem vazia.' });
 
   const input = [
-    ...history.slice(-8).map((item) => ({
+    ...safeHistory.map((item) => ({
       role: item.role === 'assistant' ? 'assistant' : 'user',
-      content: item.body,
+      content: String(item.body || '').slice(0, 2000),
     })),
-    { role: 'user', content: message },
+    { role: 'user', content: safeMessage },
   ];
 
   try {
@@ -75,13 +83,13 @@ module.exports = async function handler(req, res) {
     if (!response.ok) {
       if (data.error?.code === 'insufficient_quota' || /quota/i.test(data.error?.message || '')) {
         return res.status(402).json({
-          error: 'Créditos da OpenAI esgotados neste projeto. Adicione créditos no painel da OpenAI ou cobre créditos adicionais do cliente.',
+          error: 'Creditos da OpenAI esgotados neste projeto. Adicione creditos no painel da OpenAI ou cobre creditos adicionais do cliente.',
         });
       }
       return res.status(response.status).json({ error: data.error?.message || 'Erro ao chamar a OpenAI.' });
     }
 
-    return res.status(200).json({ answer: extractOutputText(data) || config.fallbackMessage || 'Não consegui gerar uma resposta.' });
+    return res.status(200).json({ answer: extractOutputText(data) || config.fallbackMessage || 'Nao consegui gerar uma resposta.' });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Erro inesperado ao chamar a IA.' });
   }
