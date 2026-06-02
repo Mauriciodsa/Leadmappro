@@ -1,13 +1,18 @@
-import { Box, Button, Chip, Paper, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Box, Button, Chip, IconButton, Paper, Typography } from '@mui/material';
 import MapIcon from '@mui/icons-material/Map';
 import PlaceIcon from '@mui/icons-material/Place';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import { useNavigate } from 'react-router-dom';
 import PageShell from '../components/PageShell';
 import { type ClienteLocal, readClientes } from '../services/localStore';
 
 const tileSize = 256;
 const defaultCenter = { lat: -23.55052, lng: -46.633308 };
+const minZoom = 5;
+const maxZoom = 18;
 
 function parseCoordinate(value: string) {
   const parsed = Number(String(value || '').replace(',', '.'));
@@ -55,7 +60,8 @@ export default function Mapa() {
       }
     : defaultCenter;
 
-  const zoom = mappedClientes.length > 1 ? 11 : 13;
+  const initialZoom = mappedClientes.length > 1 ? 11 : 13;
+  const [zoom, setZoom] = useState(initialZoom);
   const centerTileX = lngToTileX(center.lng, zoom);
   const centerTileY = latToTileY(center.lat, zoom);
   const tileStartX = Math.floor(centerTileX) - 2;
@@ -64,6 +70,19 @@ export default function Mapa() {
   const offsetY = (centerTileY - Math.floor(centerTileY)) * tileSize;
 
   const missingCoordinates = clientes.filter((cliente) => !cliente.latitude || !cliente.longitude);
+
+  function changeZoom(direction: 1 | -1) {
+    setZoom((currentZoom) => Math.max(minZoom, Math.min(maxZoom, currentZoom + direction)));
+  }
+
+  function resetZoom() {
+    setZoom(initialZoom);
+  }
+
+  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    changeZoom(event.deltaY < 0 ? 1 : -1);
+  }
 
   return (
     <PageShell
@@ -87,6 +106,7 @@ export default function Mapa() {
             background: '#dbe7ee',
             position: 'relative',
           }}
+          onWheel={handleWheel}
         >
           <Box sx={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
             {Array.from({ length: 5 }).map((_row, rowIndex) =>
@@ -140,12 +160,62 @@ export default function Mapa() {
             );
           })}
 
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 16,
+              left: 16,
+              zIndex: 4,
+              display: 'grid',
+              overflow: 'hidden',
+              borderRadius: '8px',
+              border: '1px solid rgba(24, 33, 47, 0.16)',
+              background: '#fff',
+              boxShadow: '0 12px 28px rgba(0,0,0,0.18)',
+            }}
+          >
+            <IconButton
+              onClick={() => changeZoom(1)}
+              disabled={zoom >= maxZoom}
+              aria-label="Aumentar zoom"
+              sx={{ width: 44, height: 44, borderRadius: 0, borderBottom: '1px solid rgba(24, 33, 47, 0.12)' }}
+            >
+              <AddIcon />
+            </IconButton>
+            <IconButton
+              onClick={() => changeZoom(-1)}
+              disabled={zoom <= minZoom}
+              aria-label="Diminuir zoom"
+              sx={{ width: 44, height: 44, borderRadius: 0 }}
+            >
+              <RemoveIcon />
+            </IconButton>
+          </Box>
+
+          <Button
+            variant="contained"
+            size="small"
+            onClick={resetZoom}
+            sx={{
+              position: 'absolute',
+              top: 16,
+              left: 68,
+              zIndex: 4,
+              minHeight: 44,
+              background: '#fff',
+              color: 'text.primary',
+              '&:hover': { background: '#f6f8fb' },
+            }}
+          >
+            Centralizar
+          </Button>
+
           <Box sx={{ position: 'absolute', left: 16, bottom: 16, p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.94)', zIndex: 3 }}>
             <Typography sx={{ fontWeight: 900, display: 'flex', alignItems: 'center', gap: 1 }}>
               <MyLocationIcon color="primary" /> {mappedClientes.length} cliente(s) no mapa
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Dados de mapa por OpenStreetMap.
+              Zoom {zoom} - dados de mapa por OpenStreetMap.
             </Typography>
           </Box>
         </Paper>
