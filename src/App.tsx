@@ -70,7 +70,6 @@ function MainApp() {
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setLogged(!!session);
-      if (session) navigate('/');
     });
     return () => listener.subscription.unsubscribe();
   }, [navigate]);
