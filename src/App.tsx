@@ -11,6 +11,7 @@ import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import LaunchIcon from '@mui/icons-material/Launch';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { isSupabaseConfigured, missingSupabaseEnv, supabase } from './services/supabase';
 import { readCompanyProfile } from './services/localStore';
 import Login from './pages/Login';
@@ -204,6 +205,20 @@ function MainApp() {
             </IconButton>
           </Tooltip>
         )}
+        <Tooltip title="Sair" key="mobile-logout">
+          <IconButton
+            color="error"
+            onClick={handleLogout}
+            sx={{
+              width: 46,
+              minWidth: 46,
+              height: 46,
+              borderRadius: '8px',
+            }}
+          >
+            <LogoutIcon />
+          </IconButton>
+        </Tooltip>
       </Paper>
     </Box>
   );

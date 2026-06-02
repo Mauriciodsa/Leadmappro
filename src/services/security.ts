@@ -13,6 +13,6 @@ export async function saveAdminCode(code: string) {
 
 export async function validateAdminCode(code: string) {
   const savedHash = localStorage.getItem('leadmap:admin-code-hash');
-  if (!savedHash) return code.trim() === 'admin-2026';
+  if (!savedHash) return false;
   return (await hashAccessCode(code)) === savedHash;
 }

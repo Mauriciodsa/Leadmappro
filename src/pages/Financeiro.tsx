@@ -96,7 +96,9 @@ export default function Financeiro() {
             <TextField
               label="Valor liquido desejado"
               type="number"
-              value={netValue}
+              value={netValue || ''}
+              placeholder="0,00"
+              onFocus={(e) => e.target.select()}
               onChange={(e) => setNetValue(Math.max(Number(e.target.value), 0))}
               fullWidth
             />
@@ -169,19 +171,25 @@ export default function Financeiro() {
                   <TextField
                     label="Parcelas"
                     type="number"
-                    value={rate.installments}
+                    value={rate.installments || ''}
+                    placeholder="1"
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => updateRate(rate.id, { installments: Math.max(Math.round(Number(e.target.value)), 1) })}
                   />
                   <TextField
                     label="Percentual"
                     type="number"
-                    value={rate.percent}
+                    value={rate.percent || ''}
+                    placeholder="0"
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => updateRate(rate.id, { percent: clampPercent(Number(e.target.value)) })}
                   />
                   <TextField
                     label="Taxa fixa"
                     type="number"
-                    value={rate.fixedFee}
+                    value={rate.fixedFee || ''}
+                    placeholder="0,00"
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) => updateRate(rate.id, { fixedFee: Math.max(Number(e.target.value), 0) })}
                   />
                 </Box>

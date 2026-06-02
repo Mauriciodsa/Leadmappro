@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, IconButton, Paper, Snackbar, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, IconButton, Paper, Snackbar, TextField, Typography } from '@mui/material';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -83,44 +83,35 @@ export default function Catalogo() {
         </Button>
       }
     >
-      <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: '8px', border: '1px solid rgba(24, 33, 47, 0.08)' }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, 1fr)' }, gap: 2 }}>
+      <Paper elevation={0} sx={{ p: { xs: 1.5, md: 3 }, borderRadius: '8px', border: '1px solid rgba(24, 33, 47, 0.08)' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
           {products.map((product) => {
             const coverImage = product.imageUrls[0] || product.imageUrl;
             return (
-              <Card key={product.id} sx={{ borderRadius: '8px' }}>
-                <CardContent>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '150px 1fr auto' }, gap: 1.5 }}>
+              <Card key={product.id} sx={{ borderRadius: '8px', overflow: 'hidden' }}>
+                <Box
+                  sx={{
+                    aspectRatio: '4 / 3',
+                    background: coverImage ? `url(${coverImage}) center/cover` : '#eef3f7',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: 'text.secondary',
+                    borderBottom: '1px solid rgba(24, 33, 47, 0.08)',
+                  }}
+                >
+                  {!coverImage && <InventoryIcon sx={{ fontSize: 48 }} />}
+                </Box>
+                <CardContent sx={{ display: 'grid', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
                     <Box
-                      sx={{
-                        minHeight: 136,
-                        borderRadius: '8px',
-                        background: coverImage ? `url(${coverImage}) center/cover` : '#eef3f7',
-                        display: 'grid',
-                        placeItems: 'center',
-                        color: 'text.secondary',
-                        border: '1px solid rgba(24, 33, 47, 0.08)',
-                      }}
+                      sx={{ minWidth: 0 }}
                     >
-                      {!coverImage && <InventoryIcon />}
-                    </Box>
-                    <Box sx={{ display: 'grid', gap: 1 }}>
-                      <TextField label="Nome" value={product.name} onChange={(e) => updateProduct(product.id, { name: e.target.value })} fullWidth />
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
-                        <TextField label="Codigo" value={product.code} onChange={(e) => updateProduct(product.id, { code: e.target.value })} />
-                        <TextField label="Categoria" value={product.category} onChange={(e) => updateProduct(product.id, { category: e.target.value })} />
-                      </Box>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        <Button variant="outlined" component="label" startIcon={<PhotoCameraIcon />} size="small" disabled={product.imageUrls.length >= maxProductImages}>
-                          Adicionar fotos ({product.imageUrls.length}/10)
-                          <input hidden multiple accept="image/*" type="file" onChange={(e) => handleProductImagesChange(product.id, e.target.files)} />
-                        </Button>
-                        {product.siteUrl && (
-                          <Button variant="outlined" startIcon={<LaunchIcon />} size="small" href={product.siteUrl} target="_blank" rel="noreferrer">
-                            Abrir site
-                          </Button>
-                        )}
-                      </Box>
+                      <Typography variant="h6" sx={{ lineHeight: 1.2, wordBreak: 'break-word' }}>
+                        {product.name || 'Novo produto'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {product.category || 'Sem categoria'} {product.code ? `- ${product.code}` : ''}
+                      </Typography>
                     </Box>
                     <IconButton color="error" onClick={() => removeProduct(product.id)} aria-label="Excluir produto">
                       <DeleteIcon />
@@ -155,11 +146,37 @@ export default function Catalogo() {
                     </Box>
                   )}
 
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    <Chip size="small" color="success" label="Item salvo" />
+                    <Chip size="small" label={`${product.imageUrls.length}/10 fotos`} />
+                  </Box>
+
+                  <Box sx={{ display: 'grid', gap: 1 }}>
+                    <TextField label="Nome" value={product.name} onChange={(e) => updateProduct(product.id, { name: e.target.value })} fullWidth />
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
+                      <TextField label="Codigo" value={product.code} onChange={(e) => updateProduct(product.id, { code: e.target.value })} />
+                      <TextField label="Categoria" value={product.category} onChange={(e) => updateProduct(product.id, { category: e.target.value })} />
+                    </Box>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      <Button variant="outlined" component="label" startIcon={<PhotoCameraIcon />} size="small" disabled={product.imageUrls.length >= maxProductImages}>
+                        Adicionar fotos
+                        <input hidden multiple accept="image/*" type="file" onChange={(e) => handleProductImagesChange(product.id, e.target.files)} />
+                      </Button>
+                      {product.siteUrl && (
+                        <Button variant="outlined" startIcon={<LaunchIcon />} size="small" href={product.siteUrl} target="_blank" rel="noreferrer">
+                          Abrir site
+                        </Button>
+                      )}
+                    </Box>
+                  </Box>
+
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '160px 1fr' }, gap: 1.5, mt: 1.5 }}>
                     <TextField
                       label="Preco"
                       type="number"
-                      value={product.price}
+                      value={product.price || ''}
+                      placeholder="0,00"
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => updateProduct(product.id, { price: Number(e.target.value) })}
                     />
                     <TextField label="URL do site" value={product.siteUrl} onChange={(e) => updateProduct(product.id, { siteUrl: e.target.value })} />
